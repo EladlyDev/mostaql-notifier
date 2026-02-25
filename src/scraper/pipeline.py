@@ -89,8 +89,12 @@ class ScraperPipeline:
 
             # ── Step 1: Scrape listings ──────────────────
             logger.info("Step 1: Scraping listing pages...")
+            # Filter by configured categories (default: programming)
+            categories = self.config.scraper.categories
+            category = categories[0] if categories else "programming"
+            logger.info("Category filter: %s", category)
             listings = await self._list_scraper.scrape_listings(
-                client, pages=pages,
+                client, pages=pages, category=category,
             )
             stats["total_listed"] = len(listings)
             logger.info("Found %d total listings", len(listings))

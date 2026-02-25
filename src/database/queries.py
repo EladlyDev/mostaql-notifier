@@ -492,12 +492,22 @@ async def get_unsent_instant_alerts(db: Database) -> list[dict[str, Any]]:
         """
         SELECT
             j.mostaql_id, j.title, j.url, j.category,
-            j.budget_min, j.budget_max, j.skills, j.proposals_count,
+            j.budget_min, j.budget_max, j.budget_raw,
+            j.skills, j.time_posted,
+            COALESCE(
+                (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id),
+                j.proposals_count
+            ) AS proposals_count,
+            jd.duration,
             a.overall_score, a.job_summary, a.recommendation,
             a.recommendation_reason, a.red_flags, a.green_flags,
-            a.recommended_proposal_angle, a.hiring_probability,
-            a.fit_score, a.budget_fairness,
-            p.display_name, p.identity_verified, p.hire_rate
+            a.recommended_proposal_angle, a.required_skills_analysis,
+            a.hiring_probability, a.fit_score, a.budget_fairness,
+            a.job_clarity, a.competition_level, a.urgency_score,
+            p.display_name AS publisher_name,
+            p.identity_verified, p.hire_rate,
+            p.total_projects_posted AS total_projects,
+            p.open_projects, p.registration_date
         FROM analyses a
         INNER JOIN jobs j ON a.mostaql_id = j.mostaql_id
         LEFT JOIN job_details jd ON j.mostaql_id = jd.mostaql_id
@@ -528,11 +538,20 @@ async def get_unsent_digest_jobs(db: Database) -> list[dict[str, Any]]:
         """
         SELECT
             j.mostaql_id, j.title, j.url, j.category,
-            j.budget_min, j.budget_max, j.skills, j.proposals_count,
+            j.budget_min, j.budget_max, j.budget_raw,
+            j.skills, j.time_posted,
+            COALESCE(
+                (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id),
+                j.proposals_count
+            ) AS proposals_count,
+            jd.duration,
             a.overall_score, a.job_summary, a.recommendation,
             a.recommendation_reason, a.red_flags, a.green_flags,
-            a.recommended_proposal_angle,
-            p.display_name, p.identity_verified, p.hire_rate
+            a.recommended_proposal_angle, a.required_skills_analysis,
+            a.hiring_probability, a.fit_score, a.budget_fairness,
+            a.job_clarity, a.competition_level,
+            p.display_name AS publisher_name,
+            p.identity_verified, p.hire_rate
         FROM analyses a
         INNER JOIN jobs j ON a.mostaql_id = j.mostaql_id
         LEFT JOIN job_details jd ON j.mostaql_id = jd.mostaql_id
@@ -667,10 +686,16 @@ async def get_top_jobs_today(
         """
         SELECT
             j.mostaql_id, j.title, j.url, j.category,
-            j.budget_min, j.budget_max, j.skills, j.proposals_count,
+            j.budget_min, j.budget_max,
+            j.skills, j.time_posted,
+            COALESCE(
+                (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id),
+                j.proposals_count
+            ) AS proposals_count,
             a.overall_score, a.job_summary, a.recommendation,
             a.hiring_probability, a.fit_score,
-            p.display_name, p.identity_verified, p.hire_rate
+            p.display_name AS publisher_name,
+            p.identity_verified, p.hire_rate
         FROM analyses a
         INNER JOIN jobs j ON a.mostaql_id = j.mostaql_id
         LEFT JOIN job_details jd ON j.mostaql_id = jd.mostaql_id

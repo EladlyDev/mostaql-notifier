@@ -148,18 +148,35 @@ def format_instant_alert(
     # ── Job details (one per line) ───────────────────────
     budget = _format_budget(job.get("budget_min"), job.get("budget_max"))
     proposals = job.get("proposals_count", 0) or 0
-    duration = job.get("duration", "غير محدد")
+    duration = job.get("duration", "")
+    # Clean duration (may have newlines/extra spaces from HTML scraping)
+    if duration:
+        duration = " ".join(duration.split()).strip()
     skills = job.get("skills", [])
     if isinstance(skills, str):
-        skills = [s.strip() for s in skills.split(",") if s.strip()]
-    category = job.get("category", "غير محدد")
+        import json as _json
+        try:
+            skills = _json.loads(skills)
+        except (ValueError, TypeError):
+            skills = [s.strip() for s in skills.split(",") if s.strip()]
+    category = job.get("category", "")
+    time_posted = job.get("time_posted", "")
+    publisher = job.get("publisher_name", "")
 
     lines.append(f"💰 {_e(budget)}")
     lines.append(f"📊 {_e(str(proposals))} عروض")
-    lines.append(f"⏱ {_e(str(duration))}")
+    if duration:
+        lines.append(f"⏱ المدة: {_e(duration)}")
+    if time_posted:
+        # Show just the date/time, not the full timestamp
+        time_str = str(time_posted)[:16]  # "2026-02-25 21:28"
+        lines.append(f"🕐 نُشر: {_e(time_str)}")
     if skills:
         lines.append(f"🏷 {_e(' · '.join(skills[:5]))}")
-    lines.append(f"📁 {_e(str(category))}")
+    if category:
+        lines.append(f"📁 {_e(str(category))}")
+    if publisher:
+        lines.append(f"👤 الناشر: {_e(publisher)}")
 
     # ── Scores ───────────────────────────────────────────
     lines.append("")

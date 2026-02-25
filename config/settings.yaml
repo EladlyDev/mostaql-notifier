@@ -22,11 +22,7 @@ scraper:
     - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
     - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   categories:
-    - "programming"
-    - "design"
-    - "writing"
-    - "marketing"
-    - "data-entry"
+    - "development"
 
 # ─── AI Configuration ─────────────────────────────────
 ai:
@@ -50,7 +46,7 @@ ai:
 telegram:
   bot_token: "${TELEGRAM_BOT_TOKEN}"
   chat_id: "${TELEGRAM_CHAT_ID}"
-  instant_alert_threshold: 80
+  instant_alert_threshold: 70
   digest_threshold: 55
   digest_interval_minutes: 60
   daily_report_hour: 22
