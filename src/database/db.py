@@ -134,6 +134,17 @@ CREATE INDEX IF NOT EXISTS idx_notifications_mostaql  ON notifications(mostaql_i
 CREATE INDEX IF NOT EXISTS idx_notifications_type     ON notifications(notification_type);
 CREATE INDEX IF NOT EXISTS idx_notifications_sent_at  ON notifications(sent_at);
 CREATE INDEX IF NOT EXISTS idx_proposals_mostaql_id   ON proposals(mostaql_id);
+
+-- ═══ Message Queue Table ═══
+-- Queues Telegram messages when the API is unavailable.
+CREATE TABLE IF NOT EXISTS message_queue (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    message     TEXT    NOT NULL,
+    msg_type    TEXT    DEFAULT 'general',
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_queue_created ON message_queue(created_at);
 """
 
 

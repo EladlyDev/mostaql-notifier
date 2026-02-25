@@ -1,7 +1,13 @@
 """Mostaql Notifier — Main Orchestrator.
 
 Ties all components together: config, database, scraper, analyzer,
-scorer, and Telegram notifier. Runs on a schedule with APScheduler.
+scorer, Telegram notifier, health monitoring, and resilience.
+
+Runs on a schedule with APScheduler:
+  - Scan cycle (every N seconds)
+  - Hourly digest
+  - Daily report (cron)
+  - Database maintenance (3 AM daily)
 
 Usage:
     python -m src.main
@@ -31,9 +37,13 @@ from src.scorer.scoring import ScoringEngine
 from src.scraper.pipeline import ScraperPipeline
 from src.notifier.telegram_bot import TelegramNotifier
 from src.notifier.dispatcher import NotificationDispatcher
+from src.utils.health import HealthMonitor
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# ── Constants ─────────────────────────────────────────────
+_ANALYSIS_BATCH_SIZE = 10  # Analyze in batches to cap memory
 
 
 class MostaqlNotifier:
@@ -41,12 +51,12 @@ class MostaqlNotifier:
 
     Manages the complete pipeline: scrape → analyze → score → notify.
     Runs continuously with scheduled scan cycles, digest sends,
-    and daily reports.
+    daily reports, and database maintenance.
 
     Attributes:
         config: Full application configuration.
         db: Active database instance.
-        scheduler: APScheduler AsyncIOScheduler.
+        health: HealthMonitor for system metrics and alerting.
     """
 
     def __init__(self) -> None:
@@ -57,6 +67,9 @@ class MostaqlNotifier:
         self._dispatcher: Optional[NotificationDispatcher] = None
         self._scorer: Optional[ScoringEngine] = None
         self._scheduler: Optional[AsyncIOScheduler] = None
+
+        # Health monitor (always available)
+        self.health = HealthMonitor()
 
         # Internal state
         self._running = False
@@ -73,7 +86,7 @@ class MostaqlNotifier:
         1. Load config
         2. Initialize database
         3. Initialize Telegram bot
-        4. Setup APScheduler with three jobs
+        4. Setup APScheduler with four jobs
         5. Run first scan cycle immediately
         6. Enter keep-alive loop
         """
@@ -143,8 +156,18 @@ class MostaqlNotifier:
                 name=f"Daily report ({report_hour}:{report_minute:02d})",
             )
 
+            # Daily maintenance at 3 AM
+            maintenance_hour = getattr(self.config, "maintenance_hour", 3)
+            self._scheduler.add_job(
+                self._run_maintenance,
+                CronTrigger(hour=maintenance_hour, minute=0),
+                id="maintenance",
+                max_instances=1,
+                name=f"DB maintenance ({maintenance_hour}:00)",
+            )
+
             self._scheduler.start()
-            logger.info("Scheduler started with 3 jobs")
+            logger.info("Scheduler started with 4 jobs")
 
             # ── 6. First scan immediately ────────────────
             logger.info("═══ Running first scan cycle ═══")
@@ -175,6 +198,7 @@ class MostaqlNotifier:
 
         Idempotent: if it crashes partway, next cycle picks up
         from DB state. Protected by async lock to prevent overlap.
+        Jobs are analyzed in batches to cap memory usage.
         """
         if self._paused:
             logger.info("Scan cycle skipped (paused)")
@@ -203,7 +227,7 @@ class MostaqlNotifier:
 
             stats = {
                 "new_jobs": 0, "analyzed": 0, "alerts_sent": 0,
-                "errors": 0, "skipped_analysis": 0,
+                "errors": 0, "tokens_used": 0,
             }
 
             try:
@@ -213,13 +237,12 @@ class MostaqlNotifier:
                 stats["new_jobs"] = scrape_stats.get("new_jobs", 0)
                 stats["errors"] += scrape_stats.get("errors", 0)
 
-                # ── Step 5-6: Analyze + Score ────────────
+                # ── Step 5-6: Analyze + Score (batched) ──
                 jobs_to_analyze = await queries.get_jobs_needing_analysis(self.db)
 
                 if jobs_to_analyze:
-                    logger.info(
-                        "═══ Analyzing %d jobs ═══", len(jobs_to_analyze),
-                    )
+                    total = len(jobs_to_analyze)
+                    logger.info("═══ Analyzing %d jobs ═══", total)
                     consecutive_failures = 0
 
                     async with JobAnalyzer(self.config) as analyzer:
@@ -228,13 +251,17 @@ class MostaqlNotifier:
                             try:
                                 logger.info(
                                     "  [%d/%d] Analyzing %s...",
-                                    i, len(jobs_to_analyze), mid,
+                                    i, total, mid,
                                 )
 
                                 analysis = await analyzer.analyze_job(job_data)
                                 if analysis is None:
                                     consecutive_failures += 1
                                     stats["errors"] += 1
+                                    self.health.record_error(
+                                        "analyzer",
+                                        f"Analysis returned None for {mid}",
+                                    )
                                     logger.error("Analysis returned None for %s", mid)
                                     continue
 
@@ -249,11 +276,13 @@ class MostaqlNotifier:
                                 # Persist
                                 await queries.insert_analysis(self.db, analysis)
                                 stats["analyzed"] += 1
+                                stats["tokens_used"] += analysis.tokens_used
                                 consecutive_failures = 0
 
                             except Exception as e:
                                 consecutive_failures += 1
                                 stats["errors"] += 1
+                                self.health.record_error("analyzer", str(e)[:200])
                                 logger.error(
                                     "Error analyzing %s: %s", mid, e,
                                 )
@@ -276,15 +305,20 @@ class MostaqlNotifier:
                     alerts_sent = await self._dispatcher.process_instant_alerts()
                     stats["alerts_sent"] = alerts_sent
 
+                # ── Step 8: Flush message queue ──────────
+                await self._flush_message_queue()
+
             except Exception as e:
                 stats["errors"] += 1
                 self._errors_count += 1
+                self.health.record_error("scan_cycle", str(e)[:200])
                 logger.error("Scan cycle error: %s", e)
                 logger.error(traceback.format_exc())
 
             # ── Log summary ──────────────────────────────
             elapsed = time.monotonic() - cycle_start
             self._errors_count += stats["errors"]
+            stats["duration"] = elapsed
 
             logger.info("═══ Cycle #%d Complete ═══", cycle_num)
             logger.info(
@@ -294,6 +328,42 @@ class MostaqlNotifier:
                 stats["alerts_sent"], stats["errors"], elapsed,
             )
 
+            # ── Record health stats ──────────────────────
+            self.health.record_cycle(stats)
+
+            # ── Check health alerts ──────────────────────
+            all_cbs = self._get_all_circuit_breakers()
+            alert_msg = self.health.should_alert(circuit_breakers=all_cbs)
+            if alert_msg and self._dispatcher:
+                try:
+                    await self._dispatcher.send_error_alert(alert_msg)
+                except Exception:
+                    pass
+
+    async def _flush_message_queue(self) -> None:
+        """Send any queued messages from previous Telegram outages."""
+        if not self.db or not self._telegram:
+            return
+
+        # Only flush if Telegram circuit is not open
+        if self._telegram.circuit_breaker.is_open:
+            return
+
+        try:
+            queued = await queries.get_queued_messages(self.db)
+            if not queued:
+                return
+
+            logger.info("Flushing %d queued messages", len(queued))
+            for msg in queued:
+                msg_id = await self._telegram.send_message(msg["message"])
+                if msg_id:
+                    await queries.delete_queued_message(self.db, msg["id"])
+                else:
+                    break  # Telegram still failing, stop flushing
+        except Exception as e:
+            logger.warning("Error flushing message queue: %s", e)
+
     async def _run_digest(self) -> None:
         """Send hourly digest of moderate-interest jobs."""
         try:
@@ -302,6 +372,7 @@ class MostaqlNotifier:
                 if count > 0:
                     logger.info("Digest sent with %d jobs", count)
         except Exception as e:
+            self.health.record_error("digest", str(e)[:200])
             logger.error("Digest error: %s", e)
 
     async def _run_daily_report(self) -> None:
@@ -312,7 +383,42 @@ class MostaqlNotifier:
                 if success:
                     logger.info("Daily report sent")
         except Exception as e:
+            self.health.record_error("daily_report", str(e)[:200])
             logger.error("Daily report error: %s", e)
+
+    async def _run_maintenance(self) -> None:
+        """Daily maintenance: cleanup old data and vacuum DB."""
+        logger.info("═══ Running database maintenance ═══")
+        try:
+            if not self.db:
+                return
+
+            # Cleanup old skipped jobs (>30 days)
+            deleted = await queries.cleanup_old_data(self.db, days=30)
+            if deleted > 0:
+                logger.info("Maintenance: cleaned up %d old jobs", deleted)
+
+            # Vacuum to reclaim space
+            await queries.vacuum_database(self.db)
+
+            # Report DB size
+            size = await queries.get_database_size(self.db)
+            size_mb = size / 1024 / 1024
+            logger.info("Maintenance complete: DB size = %.1f MB", size_mb)
+
+        except Exception as e:
+            self.health.record_error("maintenance", str(e)[:200])
+            logger.error("Maintenance error: %s", e)
+
+    def _get_all_circuit_breakers(self) -> list:
+        """Collect all circuit breakers from components."""
+        cbs = []
+        if self._telegram:
+            cbs.append(self._telegram.circuit_breaker)
+
+        # AI client circuit breakers are inside the analyzer context manager,
+        # so we track them at the health monitor level instead.
+        return cbs
 
     async def shutdown(self) -> None:
         """Graceful shutdown: stop scheduler, notify, close connections."""

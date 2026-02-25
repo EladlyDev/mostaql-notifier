@@ -710,3 +710,204 @@ async def get_top_jobs_today(
     result = [_row_to_dict(row) for row in rows]
     logger.debug("Top %d jobs today: %d results", limit, len(result))
     return result
+
+
+# ═══════════════════════════════════════════════════════════
+# Message Queue Operations
+# ═══════════════════════════════════════════════════════════
+
+
+async def queue_message(
+    db: Database, text: str, msg_type: str = "general"
+) -> None:
+    """Queue a message for later delivery when Telegram is available.
+
+    Args:
+        db: Active database instance.
+        text: The HTML message text to send later.
+        msg_type: Message type ('instant', 'digest', 'general').
+    """
+    conn = await db.get_connection()
+    await conn.execute(
+        "INSERT INTO message_queue (message, msg_type) VALUES (?, ?)",
+        (text, msg_type),
+    )
+    await conn.commit()
+    logger.debug("Message queued (type=%s, len=%d)", msg_type, len(text))
+
+
+async def get_queued_messages(db: Database) -> list[dict[str, Any]]:
+    """Retrieve all pending messages from the queue.
+
+    Args:
+        db: Active database instance.
+
+    Returns:
+        List of dicts with id, message, msg_type, created_at.
+    """
+    conn = await db.get_connection()
+    cursor = await conn.execute(
+        "SELECT * FROM message_queue ORDER BY created_at ASC"
+    )
+    rows = await cursor.fetchall()
+    result = [_row_to_dict(row) for row in rows]
+    logger.debug("Queued messages: %d", len(result))
+    return result
+
+
+async def delete_queued_message(db: Database, msg_id: int) -> None:
+    """Remove a message from the queue after successful delivery.
+
+    Args:
+        db: Active database instance.
+        msg_id: The message_queue row ID.
+    """
+    conn = await db.get_connection()
+    await conn.execute("DELETE FROM message_queue WHERE id = ?", (msg_id,))
+    await conn.commit()
+    logger.debug("Dequeued message %d", msg_id)
+
+
+# ═══════════════════════════════════════════════════════════
+# Database Maintenance
+# ═══════════════════════════════════════════════════════════
+
+
+async def cleanup_old_data(db: Database, days: int = 30) -> int:
+    """Delete jobs older than N days that were never alerted.
+
+    Only deletes jobs with recommendation='skip' (never notified).
+    Cascades to job_details, analyses, proposals via FK.
+
+    Args:
+        db: Active database instance.
+        days: Age threshold in days.
+
+    Returns:
+        Number of jobs deleted.
+    """
+    conn = await db.get_connection()
+
+    # Count before
+    cursor = await conn.execute(
+        """
+        SELECT COUNT(*) AS cnt FROM jobs j
+        INNER JOIN analyses a ON j.mostaql_id = a.mostaql_id
+        WHERE a.recommendation = 'skip'
+          AND j.first_seen_at < datetime('now', ?)
+        """,
+        (f"-{days} days",),
+    )
+    row = await cursor.fetchone()
+    count = row["cnt"]
+
+    if count == 0:
+        logger.debug("No old data to clean up (threshold=%d days)", days)
+        return 0
+
+    # Delete analyses first (child)
+    await conn.execute(
+        """
+        DELETE FROM analyses
+        WHERE mostaql_id IN (
+            SELECT j.mostaql_id FROM jobs j
+            INNER JOIN analyses a ON j.mostaql_id = a.mostaql_id
+            WHERE a.recommendation = 'skip'
+              AND j.first_seen_at < datetime('now', ?)
+        )
+        """,
+        (f"-{days} days",),
+    )
+
+    # Delete proposals
+    await conn.execute(
+        """
+        DELETE FROM proposals
+        WHERE mostaql_id IN (
+            SELECT mostaql_id FROM jobs
+            WHERE first_seen_at < datetime('now', ?)
+              AND mostaql_id NOT IN (SELECT mostaql_id FROM analyses)
+        )
+        """,
+        (f"-{days} days",),
+    )
+
+    # Delete job_details
+    await conn.execute(
+        """
+        DELETE FROM job_details
+        WHERE mostaql_id IN (
+            SELECT mostaql_id FROM jobs
+            WHERE first_seen_at < datetime('now', ?)
+              AND mostaql_id NOT IN (SELECT mostaql_id FROM analyses)
+        )
+        """,
+        (f"-{days} days",),
+    )
+
+    # Delete jobs (parent)
+    await conn.execute(
+        """
+        DELETE FROM jobs
+        WHERE first_seen_at < datetime('now', ?)
+          AND mostaql_id NOT IN (SELECT mostaql_id FROM analyses)
+        """,
+        (f"-{days} days",),
+    )
+
+    await conn.commit()
+    logger.info("Cleaned up %d old skipped jobs (threshold=%d days)", count, days)
+    return count
+
+
+async def vacuum_database(db: Database) -> None:
+    """Run VACUUM to reclaim space after cleanup.
+
+    VACUUM rebuilds the database file, reclaiming unused space.
+    Must be called outside a transaction.
+
+    Args:
+        db: Active database instance.
+    """
+    conn = await db.get_connection()
+    await conn.execute("VACUUM")
+    logger.info("Database VACUUM complete")
+
+
+async def get_database_size(db: Database) -> int:
+    """Get the database file size in bytes.
+
+    Args:
+        db: Active database instance.
+
+    Returns:
+        File size in bytes, or 0 if file not found.
+    """
+    import os
+    try:
+        size = os.path.getsize(str(db.db_path))
+        logger.debug("Database size: %d bytes (%.1f MB)", size, size / 1024 / 1024)
+        return size
+    except FileNotFoundError:
+        return 0
+
+
+async def get_total_counts(db: Database) -> dict[str, int]:
+    """Get total counts for all main tables.
+
+    Args:
+        db: Active database instance.
+
+    Returns:
+        Dict with counts for jobs, details, analyses, notifications, proposals.
+    """
+    conn = await db.get_connection()
+    counts = {}
+
+    for table in ["jobs", "job_details", "analyses", "notifications", "proposals"]:
+        cursor = await conn.execute(f"SELECT COUNT(*) AS cnt FROM {table}")
+        row = await cursor.fetchone()
+        counts[table] = row["cnt"]
+
+    logger.debug("Table counts: %s", counts)
+    return counts

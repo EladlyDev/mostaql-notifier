@@ -1,8 +1,12 @@
 """Mostaql Notifier — Unified AI Client.
 
 Wraps GeminiClient and GroqClient behind a single interface with
-automatic fallback. Tries the primary provider first; if it fails,
-transparently falls back to the secondary provider.
+automatic fallback and circuit breaker protection.
+
+Circuit breakers prevent hammering a failed provider:
+  - After 5 consecutive failures → circuit opens for 5 minutes
+  - Automatically switches to fallback provider
+  - Half-open test after cooldown
 """
 
 from __future__ import annotations
@@ -13,25 +17,27 @@ from src.config import AIConfig
 from src.analyzer.gemini_client import GeminiClient
 from src.analyzer.groq_client import GroqClient
 from src.utils.logger import get_logger
+from src.utils.resilience import CircuitBreaker, CircuitOpenError
 
 logger = get_logger(__name__)
 
 
 class AIClient:
-    """Unified AI client with automatic primary/fallback switching.
+    """Unified AI client with circuit breakers and fallback.
 
     Both providers share an identical generate() interface, so the
-    caller doesn't need to know which one is being used.
+    caller doesn't need to know which one is being used. Circuit
+    breakers prevent hammering a failing provider.
 
     Attributes:
         primary: The primary provider client.
         fallback: The fallback provider client.
+        cb_primary: Circuit breaker for the primary provider.
+        cb_fallback: Circuit breaker for the fallback provider.
     """
 
     def __init__(self, config: AIConfig) -> None:
-        """Initialize both AI provider clients.
-
-        Determines primary and fallback based on config.primary_provider.
+        """Initialize both AI provider clients with circuit breakers.
 
         Args:
             config: AIConfig with provider settings.
@@ -46,10 +52,27 @@ class AIClient:
             self.primary = self._groq
             self.fallback = self._gemini
 
+        # Circuit breakers for each provider
+        self.cb_primary = CircuitBreaker(
+            name=self.primary.name,
+            failure_threshold=5,
+            cooldown_seconds=300,   # 5 minutes
+        )
+        self.cb_fallback = CircuitBreaker(
+            name=self.fallback.name,
+            failure_threshold=5,
+            cooldown_seconds=300,
+        )
+
         logger.info(
-            "AIClient initialized: primary=%s, fallback=%s",
+            "AIClient initialized: primary=%s, fallback=%s (with circuit breakers)",
             self.primary.name, self.fallback.name,
         )
+
+    @property
+    def circuit_breakers(self) -> list[CircuitBreaker]:
+        """Return all circuit breakers for health monitoring."""
+        return [self.cb_primary, self.cb_fallback]
 
     async def __aenter__(self) -> "AIClient":
         """Enter both provider contexts.
@@ -73,8 +96,10 @@ class AIClient:
     async def analyze(self, prompt: str) -> Optional[dict[str, Any]]:
         """Send a prompt to the primary provider with fallback.
 
-        Tries the primary provider first. If it returns None (any
-        failure), transparently retries with the fallback provider.
+        Flow:
+          1. Try primary through its circuit breaker
+          2. If circuit open or call fails → try fallback
+          3. If both fail → return None
 
         Args:
             prompt: The full text prompt to send.
@@ -83,24 +108,55 @@ class AIClient:
             Parsed JSON dict with provider metadata, or None if
             both providers failed.
         """
-        # Try primary
-        logger.debug("Trying primary provider: %s", self.primary.name)
-        result = await self.primary.generate(prompt)
+        # ── Try primary ──────────────────────────────────
+        try:
+            result = await self.cb_primary.call(
+                self.primary.generate, prompt,
+            )
+            if result is not None:
+                logger.info("Analysis complete via %s", self.primary.name)
+                return result
+            # generate() returned None → count as failure
+            self.cb_primary._on_failure(
+                self.cb_primary.state,
+                Exception("generate() returned None"),
+            )
+        except CircuitOpenError:
+            logger.debug(
+                "Primary (%s) circuit is OPEN, skipping to fallback",
+                self.primary.name,
+            )
+        except Exception as e:
+            logger.warning(
+                "Primary (%s) failed: %s — trying fallback",
+                self.primary.name, str(e)[:100],
+            )
 
-        if result is not None:
-            logger.info("Analysis complete via %s", self.primary.name)
-            return result
-
-        # Fallback
-        logger.warning(
-            "Primary (%s) failed — falling back to %s",
-            self.primary.name, self.fallback.name,
-        )
-        result = await self.fallback.generate(prompt)
-
-        if result is not None:
-            logger.info("Analysis complete via fallback %s", self.fallback.name)
-            return result
+        # ── Try fallback ─────────────────────────────────
+        try:
+            result = await self.cb_fallback.call(
+                self.fallback.generate, prompt,
+            )
+            if result is not None:
+                logger.info(
+                    "Analysis complete via fallback %s",
+                    self.fallback.name,
+                )
+                return result
+            self.cb_fallback._on_failure(
+                self.cb_fallback.state,
+                Exception("generate() returned None"),
+            )
+        except CircuitOpenError:
+            logger.error(
+                "Both AI circuits OPEN: %s and %s",
+                self.primary.name, self.fallback.name,
+            )
+        except Exception as e:
+            logger.error(
+                "Fallback (%s) also failed: %s",
+                self.fallback.name, str(e)[:100],
+            )
 
         logger.error("Both AI providers failed")
         return None

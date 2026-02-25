@@ -22,6 +22,7 @@ from telegram.error import (
 
 from src.config import TelegramConfig
 from src.utils.logger import get_logger
+from src.utils.resilience import CircuitBreaker, CircuitOpenError
 
 logger = get_logger(__name__)
 
@@ -47,6 +48,13 @@ class TelegramNotifier:
         """
         self.config = config
         self._bot = Bot(token=config.bot_token)
+
+        # Circuit breaker for Telegram API
+        self.circuit_breaker = CircuitBreaker(
+            name="telegram",
+            failure_threshold=5,
+            cooldown_seconds=300,  # 5 minutes
+        )
 
     async def initialize(self) -> bool:
         """Test the bot connection.

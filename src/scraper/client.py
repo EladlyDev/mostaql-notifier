@@ -20,6 +20,7 @@ import httpx
 from src.config import ScraperConfig
 from src.utils.logger import get_logger
 from src.utils.rate_limiter import AsyncRateLimiter
+from src.utils.resilience import CircuitBreaker, CircuitOpenError
 
 logger = get_logger(__name__)
 
@@ -58,6 +59,16 @@ class MostaqlClient:
             period_seconds=float(config.request_delay_seconds),
         )
         self._client: Optional[httpx.AsyncClient] = None
+
+        # Circuit breaker for Mostaql HTTP requests
+        self.circuit_breaker = CircuitBreaker(
+            name="mostaql",
+            failure_threshold=5,
+            cooldown_seconds=300,  # 5 minutes
+        )
+
+        # Track consecutive zero-result pages for structure change detection
+        self._consecutive_empty_pages = 0
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Lazily create the httpx.AsyncClient.
@@ -116,13 +127,32 @@ class MostaqlClient:
         url = self.config.projects_url
         logger.info("Fetching listing page %d (%s)", page, url)
 
-        response = await self._request(url, params=params, extra_headers=extra_headers)
+        try:
+            response = await self.circuit_breaker.call(
+                self._request, url, params=params, extra_headers=extra_headers,
+            )
+        except CircuitOpenError:
+            logger.warning("Mostaql circuit is OPEN, skipping listing fetch")
+            return None
+        except Exception as e:
+            logger.error("Listing page fetch failed: %s", e)
+            return None
+
         if response is None:
             return None
 
         try:
             data = response.json()
             collection = data.get("collection", [])
+            if len(collection) == 0:
+                self._consecutive_empty_pages += 1
+                if self._consecutive_empty_pages >= 3:
+                    logger.error(
+                        "3 consecutive empty listing pages — "
+                        "possible site structure change!"
+                    )
+            else:
+                self._consecutive_empty_pages = 0
             logger.info(
                 "Listing page %d: %d items in collection",
                 page, len(collection),
