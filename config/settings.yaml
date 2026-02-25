@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════════
+# Mostaql Notifier — Application Settings
+# ═══════════════════════════════════════════════════════
+# Environment variables are resolved using ${VAR_NAME} syntax.
+# Ensure all referenced env vars are set in your .env file.
+
+# ─── Scraper Configuration ────────────────────────────
+scraper:
+  base_url: "https://mostaql.com"
+  projects_url: "https://mostaql.com/projects"
+  xhr_endpoint: "https://mostaql.com/projects"
+  xhr_headers:
+    X-Requested-With: "XMLHttpRequest"
+  scan_interval_seconds: 180
+  max_pages_per_scan: 3
+  request_delay_seconds: 2
+  detail_delay_seconds: 3
+  max_retries: 3
+  timeout_seconds: 30
+  user_agents:
+    - "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+    - "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  categories:
+    - "programming"
+    - "design"
+    - "writing"
+    - "marketing"
+    - "data-entry"
+
+# ─── AI Configuration ─────────────────────────────────
+ai:
+  primary_provider: "gemini"
+  fallback_provider: "groq"
+  gemini:
+    api_key: "${GEMINI_API_KEY}"
+    model: "gemini-1.5-flash"
+    max_tokens: 2048
+    temperature: 0.3
+    rpm_limit: 15
+    rpd_limit: 1500
+  groq:
+    api_key: "${GROQ_API_KEY}"
+    model: "llama-3.1-8b-instant"
+    max_tokens: 2048
+    temperature: 0.3
+    rpm_limit: 30
+
+# ─── Telegram Configuration ───────────────────────────
+telegram:
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  chat_id: "${TELEGRAM_CHAT_ID}"
+  instant_alert_threshold: 80
+  digest_threshold: 55
+  digest_interval_minutes: 60
+  daily_report_hour: 22
+  daily_report_minute: 0
+
+# ─── Scoring Configuration ────────────────────────────
+scoring:
+  weights:
+    hiring_probability: 0.30
+    fit_score: 0.30
+    budget_fairness: 0.15
+    competition_level: 0.10
+    job_clarity: 0.10
+    urgency_score: 0.05
+  bonuses:
+    publisher_verified: 5
+    hire_rate_above_70: 10
+    less_than_5_proposals: 8
+    budget_above_200: 3
+  penalties:
+    no_description: -20
+    too_many_proposals: -10
+    publisher_never_hired: -15
+    budget_below_25: -5
+
+# ─── Database ─────────────────────────────────────────
+database:
+  path: "data/mostaql_notifier.db"
+
+# ─── Logging ──────────────────────────────────────────
+logging:
+  level: "INFO"

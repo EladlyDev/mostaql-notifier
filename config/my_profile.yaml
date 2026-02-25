@@ -1,0 +1,63 @@
+# ═══════════════════════════════════════════════════════
+# Mostaql Notifier — Freelancer Profile
+# ═══════════════════════════════════════════════════════
+# Customize this file with YOUR actual skills, preferences,
+# and bio. The AI uses this to score job-fit relevance.
+
+name: "اسمك هنا"  # ← YOUR NAME IN ARABIC
+
+experience_years: 5  # ← YOUR YEARS OF EXPERIENCE
+
+skills:
+  expert:
+    - "Python"
+    - "Web Scraping"
+    - "REST APIs"
+    # ← Add your expert-level skills
+  intermediate:
+    - "JavaScript"
+    - "Docker"
+    - "PostgreSQL"
+    # ← Add your intermediate-level skills
+  beginner:
+    - "Machine Learning"
+    - "React"
+    # ← Add your beginner-level skills
+
+preferences:
+  min_budget_usd: 25
+  max_budget_usd: 5000
+  preferred_durations:
+    - "أقل من أسبوع"
+    - "أسبوع إلى شهر"
+    - "شهر إلى ثلاثة أشهر"
+  preferred_categories:
+    - "programming"
+    - "data-entry"
+    # ← Add your preferred mostaql categories
+  positive_keywords:
+    - "بايثون"
+    - "سكرابنج"
+    - "API"
+    - "أتمتة"
+    - "بوت"
+    # ← Keywords that indicate a good fit for you
+  negative_keywords:
+    - "ووردبريس"
+    - "تصميم جرافيك"
+    - "تفريغ صوتي"
+    # ← Keywords that indicate a bad fit for you
+
+bio: |
+  مطور برمجيات متخصص في بايثون وتطوير الأنظمة الخلفية.
+  لديّ خبرة واسعة في بناء أدوات الأتمتة، سكرابنج المواقع،
+  وتطوير واجهات API.
+  ← استبدل هذا النص بسيرتك الذاتية الفعلية
+
+proposal_style: |
+  أفضّل كتابة عروض مختصرة ومباشرة تركّز على:
+  - فهم المشكلة وتقديم حل واضح
+  - ذكر خبرات سابقة مشابهة
+  - تقديم جدول زمني واقعي
+  - تحديد التسليمات بوضوح
+  ← استبدل هذا النص بأسلوبك الفعلي في كتابة العروض

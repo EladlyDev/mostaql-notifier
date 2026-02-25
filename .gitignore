@@ -1,0 +1,36 @@
+# ═══ Mostaql Notifier — .gitignore ═══
+
+# Environment & secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data & logs
+data/*.db
+data/*.db-wal
+data/*.db-shm
+logs/*.log
+logs/*.log.*
+
+# OS
+.DS_Store
+Thumbs.db
