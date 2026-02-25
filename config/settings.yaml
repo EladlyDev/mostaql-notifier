@@ -34,7 +34,7 @@ ai:
   fallback_provider: "groq"
   gemini:
     api_key: "${GEMINI_API_KEY}"
-    model: "gemini-1.5-flash"
+    model: "gemini-2.5-flash"
     max_tokens: 2048
     temperature: 0.3
     rpm_limit: 15
