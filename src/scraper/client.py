@@ -79,6 +79,9 @@ class MostaqlClient:
         """
         if self._client is None:
             ua = random.choice(self.config.user_agents)
+            proxy = self.config.proxy_url or None
+            if proxy:
+                logger.info("Using proxy: %s", proxy.split("@")[-1] if "@" in proxy else proxy[:30])
             self._client = httpx.AsyncClient(
                 headers={
                     **_COMMON_HEADERS,
@@ -87,6 +90,7 @@ class MostaqlClient:
                 },
                 follow_redirects=True,
                 timeout=httpx.Timeout(self.config.timeout_seconds),
+                proxy=proxy,
             )
             # Warmup: load the HTML page first to get cookies
             await self._warmup()

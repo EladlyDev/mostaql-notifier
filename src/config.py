@@ -51,6 +51,7 @@ class ScraperConfig:
     timeout_seconds: int
     user_agents: list[str]
     categories: list[str]
+    proxy_url: str = ""
 
 
 @dataclass(frozen=True)
