@@ -46,7 +46,7 @@ ai:
 telegram:
   bot_token: "${TELEGRAM_BOT_TOKEN}"
   chat_id: "${TELEGRAM_CHAT_ID}"
-  instant_alert_threshold: 80
+  instant_alert_threshold: 70
   digest_threshold: 55
   digest_interval_minutes: 60
   daily_report_hour: 22

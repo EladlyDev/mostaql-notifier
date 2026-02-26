@@ -32,6 +32,7 @@ _COMMON_HEADERS = {
     "Sec-Fetch-Dest": "document",
     "Sec-Fetch-Mode": "navigate",
     "Sec-Fetch-Site": "same-origin",
+    "Referer": "https://mostaql.com/projects",
 }
 
 
@@ -87,7 +88,19 @@ class MostaqlClient:
                 follow_redirects=True,
                 timeout=httpx.Timeout(self.config.timeout_seconds),
             )
+            # Warmup: load the HTML page first to get cookies
+            await self._warmup()
         return self._client
+
+    async def _warmup(self) -> None:
+        """Load the main projects page to acquire session cookies."""
+        try:
+            url = self.config.projects_url
+            logger.debug("Warmup request to %s", url)
+            resp = await self._client.get(url)
+            logger.debug("Warmup response: %d", resp.status_code)
+        except Exception as e:
+            logger.warning("Warmup request failed: %s", e)
 
     def _rotate_ua(self) -> None:
         """Rotate the User-Agent header to a random one from config."""

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     proposals_count INTEGER DEFAULT 0,
     time_posted     TEXT    DEFAULT '',
     status          TEXT    DEFAULT 'open',
-    first_seen_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    first_seen_at   DATETIME DEFAULT (datetime('now', 'localtime'))
 );
 
 -- ═══ Job Details Table ═══
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS job_details (
     experience_level  TEXT    DEFAULT '',
     attachments_count INTEGER DEFAULT 0,
     publisher_id      TEXT,
-    scraped_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    scraped_at        DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (mostaql_id) REFERENCES jobs(mostaql_id) ON DELETE CASCADE
 );
 
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS publishers (
     hire_rate_raw         TEXT    DEFAULT '',
     hire_rate             REAL    DEFAULT 0.0,
     avg_rating            REAL,
-    last_scraped_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+    last_scraped_at       DATETIME DEFAULT (datetime('now', 'localtime'))
 );
 
 -- ═══ Analyses Table ═══
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS analyses (
     ai_provider                TEXT    DEFAULT '',
     ai_model                   TEXT    DEFAULT '',
     tokens_used                INTEGER DEFAULT 0,
-    analyzed_at                DATETIME DEFAULT CURRENT_TIMESTAMP,
+    analyzed_at                DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (mostaql_id) REFERENCES jobs(mostaql_id) ON DELETE CASCADE
 );
 
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     mostaql_id          TEXT    NOT NULL,
     notification_type   TEXT    NOT NULL,
     telegram_message_id TEXT,
-    sent_at             DATETIME DEFAULT CURRENT_TIMESTAMP,
+    sent_at             DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (mostaql_id) REFERENCES jobs(mostaql_id) ON DELETE CASCADE
 );
 
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS message_queue (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     message     TEXT    NOT NULL,
     msg_type    TEXT    DEFAULT 'general',
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at  DATETIME DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_message_queue_created ON message_queue(created_at);

@@ -11,7 +11,12 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from pathlib import Path
+
+# Set timezone globally — must be before any datetime usage
+os.environ["TZ"] = "Africa/Cairo"
+time.tzset()
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

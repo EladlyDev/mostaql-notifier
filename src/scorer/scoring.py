@@ -328,6 +328,18 @@ class ScoringEngine:
         if analysis.fit_score >= 85 and analysis.hiring_probability >= 60:
             is_instant = True
 
+        # Rule c: Budget >= $250 AND publisher has hired before
+        budget_max = job_data.get("budget_max", 0) or 0
+        budget_min = job_data.get("budget_min", 0) or 0
+        budget = budget_max if budget_max else budget_min
+        hire_rate = job_data.get("hire_rate", 0) or 0
+        if budget >= 250 and hire_rate > 0:
+            is_instant = True
+            logger.info(
+                "Rule c: Budget $%.0f + hire_rate %.0f%% → instant for %s",
+                budget, hire_rate, analysis.mostaql_id,
+            )
+
         # Override check
         if is_instant and self._should_override_instant(job_data, analysis):
             logger.info(

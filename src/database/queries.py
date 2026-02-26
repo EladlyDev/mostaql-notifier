@@ -624,14 +624,14 @@ async def get_today_stats(db: Database) -> dict[str, Any]:
 
     # Jobs discovered today
     cursor = await conn.execute(
-        "SELECT COUNT(*) AS cnt FROM jobs WHERE DATE(first_seen_at) = DATE('now')"
+        "SELECT COUNT(*) AS cnt FROM jobs WHERE DATE(first_seen_at) = DATE('now', 'localtime')"
     )
     row = await cursor.fetchone()
     stats["jobs_discovered"] = row["cnt"]
 
     # Jobs analyzed today
     cursor = await conn.execute(
-        "SELECT COUNT(*) AS cnt FROM analyses WHERE DATE(analyzed_at) = DATE('now')"
+        "SELECT COUNT(*) AS cnt FROM analyses WHERE DATE(analyzed_at) = DATE('now', 'localtime')"
     )
     row = await cursor.fetchone()
     stats["jobs_analyzed"] = row["cnt"]
@@ -643,7 +643,7 @@ async def get_today_stats(db: Database) -> dict[str, Any]:
             COALESCE(AVG(overall_score), 0) AS avg_score,
             COALESCE(MAX(overall_score), 0) AS max_score
         FROM analyses
-        WHERE DATE(analyzed_at) = DATE('now')
+        WHERE DATE(analyzed_at) = DATE('now', 'localtime')
         """
     )
     row = await cursor.fetchone()
@@ -654,7 +654,7 @@ async def get_today_stats(db: Database) -> dict[str, Any]:
     cursor = await conn.execute(
         """
         SELECT COUNT(*) AS cnt FROM notifications
-        WHERE notification_type = 'instant' AND DATE(sent_at) = DATE('now')
+        WHERE notification_type = 'instant' AND DATE(sent_at) = DATE('now', 'localtime')
         """
     )
     row = await cursor.fetchone()
@@ -664,7 +664,7 @@ async def get_today_stats(db: Database) -> dict[str, Any]:
     cursor = await conn.execute(
         """
         SELECT COUNT(*) AS cnt FROM notifications
-        WHERE notification_type = 'digest' AND DATE(sent_at) = DATE('now')
+        WHERE notification_type = 'digest' AND DATE(sent_at) = DATE('now', 'localtime')
         """
     )
     row = await cursor.fetchone()
@@ -708,7 +708,7 @@ async def get_top_jobs_today(
         INNER JOIN jobs j ON a.mostaql_id = j.mostaql_id
         LEFT JOIN job_details jd ON j.mostaql_id = jd.mostaql_id
         LEFT JOIN publishers p ON jd.publisher_id = p.publisher_id
-        WHERE DATE(a.analyzed_at) = DATE('now')
+        WHERE DATE(a.analyzed_at) = DATE('now', 'localtime')
         ORDER BY a.overall_score DESC
         LIMIT ?
         """,

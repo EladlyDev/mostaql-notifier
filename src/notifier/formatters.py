@@ -168,14 +168,15 @@ def format_instant_alert(
     if duration:
         lines.append(f"⏱ المدة: {_e(duration)}")
     if time_posted:
-        # Convert UTC to local time (EET = UTC+2)
-        time_str = str(time_posted)[:19]  # "2026-02-25 21:28:00"
+        # Convert UTC time_posted to Africa/Cairo
+        time_str = str(time_posted)[:19]
         try:
-            from datetime import datetime, timedelta, timezone
+            from datetime import datetime, timezone
+            from zoneinfo import ZoneInfo
             utc_dt = datetime.strptime(time_str[:16], "%Y-%m-%d %H:%M")
             utc_dt = utc_dt.replace(tzinfo=timezone.utc)
-            local_dt = utc_dt + timedelta(hours=2)  # EET
-            lines.append(f"🕐 نُشر: {_e(local_dt.strftime('%Y-%m-%d %H:%M'))}")
+            cairo_dt = utc_dt.astimezone(ZoneInfo("Africa/Cairo"))
+            lines.append(f"🕐 نُشر: {_e(cairo_dt.strftime('%Y-%m-%d %H:%M'))}")
         except (ValueError, TypeError):
             lines.append(f"🕐 نُشر: {_e(time_str[:16])}")
     if skills:

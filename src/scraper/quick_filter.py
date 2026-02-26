@@ -21,15 +21,35 @@ logger = get_logger(__name__)
 _IRRELEVANT_SIGNALS: list[tuple[str, str, str | None]] = [
     ("ترجمة", "translation", None),
     ("كتابة مقالات", "article writing", None),
+    ("كتابة محتوى", "content writing", None),
     ("تفريغ صوتي", "transcription", None),
     ("فويس أوفر", "voice over", None),
     ("voice over", "voice over", None),
     ("تصميم شعار", "logo design", "design"),
     ("تصميم جرافيك", "graphic design", "design"),
+    ("موشن جرافيك", "motion graphics", None),
+    ("motion graphic", "motion graphics", None),
+    ("فيديو موشن", "motion video", None),
+    ("مونتاج", "video editing", None),
+    ("تصميم فيديو", "video design", None),
+    ("تحرير فيديو", "video editing", None),
+    ("تصميم مطبخ", "kitchen design", None),
+    ("تصميم مطابخ", "kitchen design", None),
+    ("تصميم داخلي", "interior design", None),
+    ("تصميم ديكور", "interior design", None),
+    ("ثري دي", "3D design", None),
+    ("3d max", "3D design", None),
+    ("autocad", "CAD", None),
+    ("أوتوكاد", "CAD", None),
+    ("محاسبة", "accounting", None),
     ("إدخال بيانات", "data entry", "data entry"),
     ("تسويق", "marketing", "marketing"),
+    ("تسويق إلكتروني", "digital marketing", "marketing"),
     ("سيو", "SEO", "seo"),
     ("SEO", "SEO", "seo"),
+    ("تصوير", "photography", None),
+    ("رسم", "illustration", None),
+    ("هندسة معمارية", "architecture", None),
 ]
 
 # ── Common English skill aliases ─────────────────────────
@@ -229,8 +249,10 @@ class QuickFilter:
             if _text_contains(combined, kw):
                 return True, f"Keyword match: {kw}"
 
-        # ── Rule 5: Default — no strong signal ───────────
-        return True, "No negative signals — will analyze"
+        # ── Rule 5: Default pass ─────────────────────────
+        # Mostaql API already filters by category + budget,
+        # so anything not caught by irrelevant signals is likely relevant.
+        return True, "Passed filters"
 
     def filter_batch(
         self, jobs: list[JobListing]
