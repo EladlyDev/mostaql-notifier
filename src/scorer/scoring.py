@@ -232,25 +232,30 @@ class ScoringEngine:
                 f"منافسة عالية جداً — {proposals} عرض (-{val})",
             ))
 
-        # Publisher never hired (3+ projects posted, 0 hired)
-        total_projects = job_data.get("total_projects", 0) or 0
+        # Publisher never hired
+        # hire_rate_raw: "لم يحسب بعد" = new, "0%" = posted but never hired
         hire_rate = job_data.get("hire_rate", 0)
-        if total_projects >= 3 and (hire_rate is None or hire_rate == 0):
+        hire_rate_raw = str(job_data.get("hire_rate_raw", ""))
+        never_hired = (
+            hire_rate_raw == "لم يحسب بعد"
+            or (isinstance(hire_rate, (int, float)) and hire_rate == 0)
+        )
+        if never_hired:
             val = abs(cfg.get("publisher_never_hired", -15))
             penalties.append((
                 "publisher_never_hired", val,
-                f"الناشر لم يوظف أحداً من {total_projects} مشاريع (-{val})",
+                f"الناشر لم يوظف أحداً بعد (-{val})",
             ))
 
-        # Budget below $25
+        # Budget below $100 (user's minimum preference)
         budget_max = job_data.get("budget_max", 0) or 0
         budget_min = job_data.get("budget_min", 0) or 0
         budget = budget_max if budget_max else budget_min
-        if 0 < budget < 25:
-            val = abs(cfg.get("budget_below_25", -5))
+        if 0 < budget < 100:
+            val = abs(cfg.get("budget_below_100", -10))
             penalties.append((
-                "budget_below_25", val,
-                f"ميزانية منخفضة جداً ${budget:.0f} (-{val})",
+                "budget_below_100", val,
+                f"ميزانية منخفضة ${budget:.0f} (-{val})",
             ))
 
         return penalties

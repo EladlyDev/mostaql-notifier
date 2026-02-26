@@ -93,8 +93,16 @@ class ScraperPipeline:
             categories = self.config.scraper.categories
             category = categories[0] if categories else "programming"
             logger.info("Category filter: %s", category)
+
+            # Budget filter from profile preferences
+            min_budget = self.config.profile.preferences.get("min_budget_usd", 0)
+            filters: dict[str, Any] = {"category": category}
+            if min_budget:
+                filters["budget_min"] = min_budget
+                logger.info("Budget filter: min $%d", min_budget)
+
             listings = await self._list_scraper.scrape_listings(
-                client, pages=pages, category=category,
+                client, pages=pages, **filters,
             )
             stats["total_listed"] = len(listings)
             logger.info("Found %d total listings", len(listings))

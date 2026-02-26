@@ -4,60 +4,72 @@
 # Customize this file with YOUR actual skills, preferences,
 # and bio. The AI uses this to score job-fit relevance.
 
-name: "اسمك هنا"  # ← YOUR NAME IN ARABIC
+name: "محمد شوقي"
 
-experience_years: 5  # ← YOUR YEARS OF EXPERIENCE
+experience_years: 2
 
 skills:
   expert:
     - "Python"
+    - "Node.js"
+    - "Next.js"
+    - "React"
+    - "API Integrations (Salla & Shopify)"
     - "Web Scraping"
-    - "REST APIs"
-    # ← Add your expert-level skills
+    - "Telegram Bots Development"
+    - "Automation"
+    - "Full-Stack Development"
   intermediate:
-    - "JavaScript"
-    - "Docker"
     - "PostgreSQL"
-    # ← Add your intermediate-level skills
+    - "Supabase"
+    - "TypeScript"
+    - "JavaScript"
+    - "Tailwind CSS"
+    - "VPS / Ubuntu Server Administration"
+    - "React Native"
   beginner:
     - "Machine Learning"
-    - "React"
-    # ← Add your beginner-level skills
+    - "German Language"
 
 preferences:
-  min_budget_usd: 25
+  min_budget_usd: 250
   max_budget_usd: 5000
   preferred_durations:
     - "أقل من أسبوع"
     - "أسبوع إلى شهر"
     - "شهر إلى ثلاثة أشهر"
   preferred_categories:
-    - "programming"
-    - "data-entry"
-    # ← Add your preferred mostaql categories
+    - "برمجة، تطوير المواقع والتطبيقات"
   positive_keywords:
-    - "بايثون"
-    - "سكرابنج"
+    - "سلة"
+    - "شوبيفاي"
     - "API"
-    - "أتمتة"
+    - "سكرابنج"
+    - "Scraping"
     - "بوت"
-    # ← Keywords that indicate a good fit for you
+    - "تليجرام"
+    - "أتمتة"
+    - "SaaS"
+    - "Next.js"
+    - "Node.js"
+    - "مزامنة"
   negative_keywords:
     - "ووردبريس"
     - "تصميم جرافيك"
     - "تفريغ صوتي"
-    # ← Keywords that indicate a bad fit for you
+    - "إدخال بيانات"
+    - "تسويق"
+    - "كتابة محتوى"
 
 bio: |
-  مطور برمجيات متخصص في بايثون وتطوير الأنظمة الخلفية.
-  لديّ خبرة واسعة في بناء أدوات الأتمتة، سكرابنج المواقع،
-  وتطوير واجهات API.
-  ← استبدل هذا النص بسيرتك الذاتية الفعلية
+  مطور برمجيات متكامل (Full-Stack Developer) وخريج برنامج هندسة البرمجيات من ALX. 
+  متخصص في بناء تطبيقات SaaS، وتطوير الأنظمة الخلفية، وربط الواجهات البرمجية (APIs) لمنصات التجارة الإلكترونية مثل سلة وشوبيفاي (تطبيقات خاصة، تكامل مع واتساب، ومزامنة منتجات). 
+  لدي خبرة قوية في أتمتة العمليات، وبناء بوتات تليجرام المتقدمة، وسحب البيانات (Web Scraping)، إلى جانب تصميم بنية تحتية قوية للمشاريع باستخدام React و Node.js و PostgreSQL.
 
 proposal_style: |
-  أفضّل كتابة عروض مختصرة ومباشرة تركّز على:
-  - فهم المشكلة وتقديم حل واضح
-  - ذكر خبرات سابقة مشابهة
-  - تقديم جدول زمني واقعي
-  - تحديد التسليمات بوضوح
-  ← استبدل هذا النص بأسلوبك الفعلي في كتابة العروض
+  أفضّل كتابة عروض مختصرة وعملية تركز على الجانب التقني:
+  - الدخول في صلب الموضوع مباشرة وإظهار فهم دقيق للمشكلة التقنية.
+  - اقتراح الحل البرمجي الأمثل فوراً (مثل تحديد نوع الـ API المناسب أو هيكلة قاعدة البيانات).
+  - الإشارة السريعة إلى مشاريع سابقة مشابهة (مثل تطبيقات سلة، بوتات تليجرام لسحب البيانات، أو أنظمة المزامنة بين المتاجر).
+  - تحديد التقنيات المستخدمة في التنفيذ بوضوح (Next.js, Node.js, Python, Supabase).
+  - تقديم خطة عمل مقسمة لمراحل واضحة مع جدول زمني دقيق للتسليم.

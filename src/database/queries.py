@@ -455,7 +455,12 @@ async def get_jobs_needing_analysis(db: Database) -> list[dict[str, Any]]:
         SELECT
             j.mostaql_id, j.url, j.title, j.brief_description,
             j.category, j.budget_min, j.budget_max, j.budget_raw,
-            j.skills, j.proposals_count, j.time_posted, j.status,
+            j.skills, j.time_posted, j.status,
+            CASE
+                WHEN (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id) > 0
+                THEN (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id)
+                ELSE j.proposals_count
+            END AS proposals_count,
             jd.full_description, jd.duration, jd.experience_level,
             jd.attachments_count,
             p.publisher_id, p.display_name, p.role AS publisher_role,
@@ -494,10 +499,11 @@ async def get_unsent_instant_alerts(db: Database) -> list[dict[str, Any]]:
             j.mostaql_id, j.title, j.url, j.category,
             j.budget_min, j.budget_max, j.budget_raw,
             j.skills, j.time_posted,
-            COALESCE(
-                (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id),
-                j.proposals_count
-            ) AS proposals_count,
+            CASE
+                WHEN (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id) > 0
+                THEN (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id)
+                ELSE j.proposals_count
+            END AS proposals_count,
             jd.duration,
             a.overall_score, a.job_summary, a.recommendation,
             a.recommendation_reason, a.red_flags, a.green_flags,
@@ -540,10 +546,11 @@ async def get_unsent_digest_jobs(db: Database) -> list[dict[str, Any]]:
             j.mostaql_id, j.title, j.url, j.category,
             j.budget_min, j.budget_max, j.budget_raw,
             j.skills, j.time_posted,
-            COALESCE(
-                (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id),
-                j.proposals_count
-            ) AS proposals_count,
+            CASE
+                WHEN (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id) > 0
+                THEN (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id)
+                ELSE j.proposals_count
+            END AS proposals_count,
             jd.duration,
             a.overall_score, a.job_summary, a.recommendation,
             a.recommendation_reason, a.red_flags, a.green_flags,
@@ -688,10 +695,11 @@ async def get_top_jobs_today(
             j.mostaql_id, j.title, j.url, j.category,
             j.budget_min, j.budget_max,
             j.skills, j.time_posted,
-            COALESCE(
-                (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id),
-                j.proposals_count
-            ) AS proposals_count,
+            CASE
+                WHEN (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id) > 0
+                THEN (SELECT COUNT(*) FROM proposals pr WHERE pr.mostaql_id = j.mostaql_id)
+                ELSE j.proposals_count
+            END AS proposals_count,
             a.overall_score, a.job_summary, a.recommendation,
             a.hiring_probability, a.fit_score,
             p.display_name AS publisher_name,

@@ -168,9 +168,16 @@ def format_instant_alert(
     if duration:
         lines.append(f"⏱ المدة: {_e(duration)}")
     if time_posted:
-        # Show just the date/time, not the full timestamp
-        time_str = str(time_posted)[:16]  # "2026-02-25 21:28"
-        lines.append(f"🕐 نُشر: {_e(time_str)}")
+        # Convert UTC to local time (EET = UTC+2)
+        time_str = str(time_posted)[:19]  # "2026-02-25 21:28:00"
+        try:
+            from datetime import datetime, timedelta, timezone
+            utc_dt = datetime.strptime(time_str[:16], "%Y-%m-%d %H:%M")
+            utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+            local_dt = utc_dt + timedelta(hours=2)  # EET
+            lines.append(f"🕐 نُشر: {_e(local_dt.strftime('%Y-%m-%d %H:%M'))}")
+        except (ValueError, TypeError):
+            lines.append(f"🕐 نُشر: {_e(time_str[:16])}")
     if skills:
         lines.append(f"🏷 {_e(' · '.join(skills[:5]))}")
     if category:
@@ -198,7 +205,16 @@ def format_instant_alert(
     lines.append(f"📈 احتمال التوظيف: <b>{hiring}%</b>")
     lines.append(f"💰 عدالة السعر: <b>{budget_fair}%</b>")
     lines.append(f"📝 وضوح المشروع: <b>{clarity}%</b>")
-    lines.append(f"🏆 المنافسة: <b>{competition}%</b>")
+    # competition_level: higher = less competition (better)
+    if competition >= 80:
+        comp_label = "منخفضة جداً ✅"
+    elif competition >= 60:
+        comp_label = "منخفضة"
+    elif competition >= 40:
+        comp_label = "متوسطة"
+    else:
+        comp_label = "عالية ⚠️"
+    lines.append(f"👥 المنافسة: <b>{comp_label}</b>")
 
     # ── AI Analysis ──────────────────────────────────────
     summary = analysis.get("job_summary", "")

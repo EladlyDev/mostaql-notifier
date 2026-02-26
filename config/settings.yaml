@@ -46,7 +46,7 @@ ai:
 telegram:
   bot_token: "${TELEGRAM_BOT_TOKEN}"
   chat_id: "${TELEGRAM_CHAT_ID}"
-  instant_alert_threshold: 70
+  instant_alert_threshold: 80
   digest_threshold: 55
   digest_interval_minutes: 60
   daily_report_hour: 22
@@ -70,7 +70,7 @@ scoring:
     no_description: -20
     too_many_proposals: -10
     publisher_never_hired: -15
-    budget_below_25: -5
+    budget_below_100: -5
 
 # ─── Database ─────────────────────────────────────────
 database:
